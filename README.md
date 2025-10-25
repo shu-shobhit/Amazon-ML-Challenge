@@ -2,9 +2,9 @@
 
 | Name | LinkedIn | GitHub |
 | :--- | :--- | :--- |
-| Shobhit Kumar Shukla | [LinkedIn]() | [GitHub]() |
-| Jiten Shah | [LinkedIn]() | [GitHub]() |
-| Swar Desai | [LinkedIn]() | [GitHub]() |
+| Shobhit Kumar Shukla | [LinkedIn](https://www.linkedin.com/in/shobhit-kumar-shukla-67aaa8221) | [GitHub](https://github.com/shu-shobhit) |
+| Jiten Shah | [LinkedIn](https://www.linkedin.com/in/jiten-shah-28a710255) | [GitHub](https://github.com/jiten1802) |
+| Swar Desai | [LinkedIn](https://www.linkedin.com/in/swar-desai-a82036250) | [GitHub](https://github.com/SwarDesai) |
 
 ## Preprocessing
 
