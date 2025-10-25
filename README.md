@@ -1,106 +1,53 @@
-# ML Challenge 2025 Problem Statement
+### Team Gliders
 
-## Smart Product Pricing Challenge
+| Name | LinkedIn | GitHub |
+| :--- | :--- | :--- |
+| Shobhit Kumar Shukla | [LinkedIn]() | [GitHub]() |
+| Jiten Shah | [LinkedIn]() | [GitHub]() |
+| Swar Desai | [LinkedIn]() | [GitHub]() |
 
-In e-commerce, determining the optimal price point for products is crucial for marketplace success and customer satisfaction. Your challenge is to develop an ML solution that analyzes product details and predict the price of the product. The relationship between product attributes and pricing is complex - with factors like brand, specifications, product quantity directly influence pricing. Your task is to build a model that can analyze these product details holistically and suggest an optimal price.
+## Preprocessing
 
-### Data Description:
+1.  **Text Cleaning:** We removed irrelevant text from the `catalog_content` column, including placeholders such as "Bullet Point X" and any emojis, to ensure cleaner and more semantically meaningful inputs.
+2.  **Preprocessing for Classical NLP Models:** For experiments using traditional text representation methods (e.g., TF-IDF embeddings), we additionally removed stop words to reduce noise and improve feature relevance.
+3.  **Handling Missing Images:** For samples with invalid or inaccessible image links (e.g., 404 errors), we generated full black placeholder images of appropriate dimensions to maintain input consistency across all samples.
 
-The dataset consists of the following columns:
+## ML Approach
 
-1. **sample_id:** A unique identifier for the input sample
-2. **catalog_content:** Text field containing title, product description and an Item Pack Quantity(IPQ) concatenated.
-3. **image_link:** Public URL where the product image is available for download. 
-   Example link - https://m.media-amazon.com/images/I/71XfHPR36-L.jpg
-   To download images use `download_images` function from `src/utils.py`. See sample code in `src/test.ipynb`.
-4. **price:** Price of the product (Target variable - only available in training data)
+We focused on obtaining high-quality feature representations for both text and image modalities, followed by refining these representations and exploring effective fusion strategies. To achieve this, we utilized pre-trained language model encoders for text and pre-trained large-scale vision models for images, leveraging their strong generalization capabilities.
 
-### Dataset Details:
+For multimodal fusion, we employed a dual-branch cross-attention mechanism between the text and image representations.
 
-- **Training Dataset:** 75k products with complete product details and prices
-- **Test Set:** 75k products for final evaluation
+*   In the text-to-image branch, queries were derived from text features, while keys and values originated from image features.
+*   Conversely, in the image-to-text branch, queries were derived from image features, and keys and values from text features.
 
-### Output Format:
+The fused representations were then passed through a regression head, implemented as a multi-layer perceptron (MLP) incorporating a Gated Linear Unit (GLU) to enhance feature gating and nonlinearity. We used Huber Loss (Smooth L1 Loss) as the training objective, as it demonstrated superior robustness to outliers compared to Mean Squared Error (MSE) Loss in our experiments.
 
-The output file should be a CSV with 2 columns:
+To encourage diversity in the learned representations, we employed different combinations of pre-trained text and vision encoders and ensembled their outputs via simple averaging of predictions. Throughout development, we continuously evaluated our models on a validation set comprising 3,750 samples to guide model selection and performance tuning.
 
-1. **sample_id:** The unique identifier of the data sample. Note the ID should match the test record sample_id.
-2. **price:** A float value representing the predicted price of the product.
+## Models in the Ensemble:
 
-Note: Make sure to output a prediction for all sample IDs. If you have less/more number of output samples in the output file as compared to test.csv, your output won't be evaluated.
+| Text Encoder | Image Encoder | Configuration | Validation SMAPE |
+| :--- | :--- | :--- | :--- |
+| distil-bert-uncased | vit-large | 768D, 4 CA Blks, 12H | 46.4140 |
+| Qwen2-0.5B | dinov2-large | 768D, 4 CA Blks, 12H | 45.998 |
+| distil-roberta | dinov2-base | 1024D, 6 CA Blks, 8H | 46.995 |
 
-### File Descriptions:
+**Other Model in the ensemble:**
 
-*Source files*
+*   Text Embedding + Image Embedding with GLU-based deep MLP fusion
 
-1. **src/utils.py:** Contains helper functions for downloading images from the image_link. You may need to retry a few times to download all images due to possible throttling issues.
-2. **sample_code.py:** Sample dummy code that can generate an output file in the given format. Usage of this file is optional.
+## Experiments:
 
-*Dataset files*
+1.  We started by evaluating a baseline model using TF-IDF features and LightGBM regression, which achieved a SMAPE of 50.735 on the validation set.
+2.  We then obtained embeddings from pre-trained language and vision models and applied MLP-based fusion and regression, achieving an improved SMAPE of 48.346.
+3.  Next, we adopted a cross-attention-based fusion mechanism, which became our final approach, which achieved the best SMAPE of 45.498 (without ensembling).
+4.  We conducted ablation experiments comparing dual-branch cross-attention fusion with single-branch variants.
+5.  The text-to-image single-branch configuration performed closer to the dual-branch setup, while the image-to-text branch lagged behind.
+6.  We experimented with different loss functions—MSE, L1, and Huber—and found that Huber Loss provided more stable and robust performance, making it the preferred choice for our final model.
 
-1. **dataset/train.csv:** Training file with labels (`price`).
-2. **dataset/test.csv:** Test file without output labels (`price`). Generate predictions using your model/solution on this file's data and format the output file to match sample_test_out.csv
-3. **dataset/sample_test.csv:** Sample test input file.
-4. **dataset/sample_test_out.csv:** Sample outputs for sample_test.csv. The output for test.csv must be formatted in the exact same way. Note: The predictions in the file might not be correct
+## Conclusion
 
-### Constraints:
+In this work, we explored a range of approaches to effectively model multimodal data comprising both text and images for product price prediction. Starting from a simple TF-IDF and LightGBM baseline, we progressively improved our system by leveraging pre-trained language and vision encoders, followed by MLP-based fusion, and finally adopting a cross-attention-based fusion mechanism.
 
-1. You will be provided with a sample output file. Format your output to match the sample output file exactly. 
-
-2. Predicted prices must be positive float values.
-
-3. Final model should be a MIT/Apache 2.0 License model and up to 8 Billion parameters.
-
-### Evaluation Criteria:
-
-Submissions are evaluated using **Symmetric Mean Absolute Percentage Error (SMAPE)**: A statistical measure that expresses the relative difference between predicted and actual values as a percentage, while treating positive and negative errors equally.
-
-**Formula:**
-```
-SMAPE = (1/n) * Σ |predicted_price - actual_price| / ((|actual_price| + |predicted_price|)/2)
-```
-
-**Example:** If actual price = $100 and predicted price = $120  
-SMAPE = |100-120| / ((|100| + |120|)/2) * 100% = 18.18%
-
-**Note:** SMAPE is bounded between 0% and 200%. Lower values indicate better performance.
-
-### Leaderboard Information:
-
-- **Public Leaderboard:** During the challenge, rankings will be based on 25K samples from the test set to provide real-time feedback on your model's performance.
-- **Final Rankings:** The final decision will be based on performance on the complete 75K test set along with provided documentation of the proposed approach by the teams.
-
-### Submission Requirements:
-
-1. Upload a `test_out.csv` file in the Portal with the exact same formatting as `sample_test_out.csv`
-
-2. All participating teams must also provide a 1-page document describing:
-   - Methodology used
-   - Model architecture/algorithms selected
-   - Feature engineering techniques applied
-   - Any other relevant information about the approach
-   Note: A sample template for this documentation is provided in Documentation_template.md
-
-### **Academic Integrity and Fair Play:**
-
-**⚠️ STRICTLY PROHIBITED: External Price Lookup**
-
-Participants are **STRICTLY NOT ALLOWED** to obtain prices from the internet, external databases, or any sources outside the provided dataset. This includes but is not limited to:
-- Web scraping product prices from e-commerce websites
-- Using APIs to fetch current market prices
-- Manual price lookup from online sources
-- Using any external pricing databases or services
-
-**Enforcement:**
-- All submitted approaches, methodologies, and code pipelines will be thoroughly reviewed and verified
-- Any evidence of external price lookup or data augmentation from internet sources will result in **immediate disqualification**
-
-**Fair Play:** This challenge is designed to test your machine learning and data science skills using only the provided training data. External price lookup defeats the purpose of the challenge.
-
-
-### Tips for Success:
-
-- Consider both textual features (catalog_content) and visual features (product images)
-- Explore feature engineering techniques for text and image data
-- Consider ensemble methods combining different model types
-- Pay attention to outliers and data preprocessing
+Our experiments demonstrated that cross-attention-based fusion facilitates richer interactions between modalities, leading to notable performance gains. Furthermore, our analysis suggests that text features contribute more significantly to the prediction task than image features, highlighting the dominant role of textual information in product price estimation.
